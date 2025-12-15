@@ -1,0 +1,51 @@
+name: Revise SHA
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */1 * * *" # every hour
+
+jobs:
+  revise-sha:
+    runs-on: ubuntu-latest  # Default to ubuntu-latest
+    permissions:
+      contents: "write"  # Required to push changes to a branch
+      pull-requests: "write"  # Required to create PR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: 'Revise SHA'
+        run: |
+          echo "Revising SHA in README.md.."
+          RANDOM_STRING=$(openssl rand -hex 16)
+          echo "Hello $RANDOM_STRING" > README.md
+      
+      - name: Check for changes
+        id: changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit changes
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git add README.md
+          git commit -m "revise sha automated [skip ci]"
+
+      - name: Push changes
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git push origin main
